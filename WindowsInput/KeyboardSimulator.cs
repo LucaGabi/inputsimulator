@@ -13,12 +13,12 @@ namespace WindowsInput
         private readonly IInputSimulator _inputSimulator;
 
         /// <summary>
-        /// The instance of the <see cref="IInputMessageDispatcher"/> to use for dispatching <see cref="INPUT"/> messages.
+        /// The instance of the <see cref="IInputMessageDispatcher"/> to use for dispatching <see cref="Input"/> messages.
         /// </summary>
         private readonly IInputMessageDispatcher _messageDispatcher;
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="KeyboardSimulator"/> class using an instance of a <see cref="WindowsInputMessageDispatcher"/> for dispatching <see cref="INPUT"/> messages.
+        /// Initializes a new instance of the <see cref="KeyboardSimulator"/> class using an instance of a <see cref="WindowsInputMessageDispatcher"/> for dispatching <see cref="Input"/> messages.
         /// </summary>
         /// <param name="inputSimulator">The <see cref="IInputSimulator"/> that owns this instance.</param>
         public KeyboardSimulator(IInputSimulator inputSimulator)
@@ -30,10 +30,10 @@ namespace WindowsInput
         }
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="KeyboardSimulator"/> class using the specified <see cref="IInputMessageDispatcher"/> for dispatching <see cref="INPUT"/> messages.
+        /// Initializes a new instance of the <see cref="KeyboardSimulator"/> class using the specified <see cref="IInputMessageDispatcher"/> for dispatching <see cref="Input"/> messages.
         /// </summary>
         /// <param name="inputSimulator">The <see cref="IInputSimulator"/> that owns this instance.</param>
-        /// <param name="messageDispatcher">The <see cref="IInputMessageDispatcher"/> to use for dispatching <see cref="INPUT"/> messages.</param>
+        /// <param name="messageDispatcher">The <see cref="IInputMessageDispatcher"/> to use for dispatching <see cref="Input"/> messages.</param>
         /// <exception cref="InvalidOperationException">If null is passed as the <paramref name="messageDispatcher"/>.</exception>
         internal KeyboardSimulator(IInputSimulator inputSimulator, IInputMessageDispatcher messageDispatcher)
         {
@@ -42,7 +42,7 @@ namespace WindowsInput
             if (messageDispatcher == null)
                 throw new InvalidOperationException(
                     string.Format("The {0} cannot operate with a null {1}. Please provide a valid {1} instance to use for dispatching {2} messages.",
-                    typeof(KeyboardSimulator).Name, typeof(IInputMessageDispatcher).Name, typeof(INPUT).Name));
+                    typeof(KeyboardSimulator).Name, typeof(IInputMessageDispatcher).Name, typeof(Input).Name));
 
             _inputSimulator = inputSimulator;
             _messageDispatcher = messageDispatcher;
@@ -76,10 +76,10 @@ namespace WindowsInput
         }
 
         /// <summary>
-        /// Sends the list of <see cref="INPUT"/> messages using the <see cref="IInputMessageDispatcher"/> instance.
+        /// Sends the list of <see cref="Input"/> messages using the <see cref="IInputMessageDispatcher"/> instance.
         /// </summary>
-        /// <param name="inputList">The <see cref="System.Array"/> of <see cref="INPUT"/> messages to send.</param>
-        private void SendSimulatedInput(INPUT[] inputList)
+        /// <param name="inputList">The <see cref="System.Array"/> of <see cref="Input"/> messages to send.</param>
+        private void SendSimulatedInput(Input[] inputList)
         {
             _messageDispatcher.DispatchInput(inputList);
         }
@@ -149,7 +149,7 @@ namespace WindowsInput
         /// <param name="keyCode">The key to simulate</param>
         public IKeyboardSimulator ModifiedKeyStroke(IEnumerable<VirtualKeyCode> modifierKeyCodes, VirtualKeyCode keyCode)
         {
-            ModifiedKeyStroke(modifierKeyCodes, new[] {keyCode});
+            ModifiedKeyStroke(modifierKeyCodes, new[] { keyCode });
             return this;
         }
 
@@ -161,7 +161,7 @@ namespace WindowsInput
         /// <param name="keyCodes">The list of keys to simulate</param>
         public IKeyboardSimulator ModifiedKeyStroke(VirtualKeyCode modifierKey, IEnumerable<VirtualKeyCode> keyCodes)
         {
-            ModifiedKeyStroke(new [] {modifierKey}, keyCodes);
+            ModifiedKeyStroke(new[] { modifierKey }, keyCodes);
             return this;
         }
 
@@ -188,7 +188,8 @@ namespace WindowsInput
         /// <param name="text">The text to be simulated.</param>
         public IKeyboardSimulator TextEntry(string text)
         {
-            if (text.Length > UInt32.MaxValue / 2) throw new ArgumentException(string.Format("The text parameter is too long. It must be less than {0} characters.", UInt32.MaxValue / 2), "text");
+            if (text.Length > uint.MaxValue / 2) throw new ArgumentException(
+                $"The text parameter is too long. It must be less than {uint.MaxValue/2} characters.", nameof(text));
             var inputList = new InputBuilder().AddCharacters(text).ToArray();
             SendSimulatedInput(inputList);
             return this;
@@ -224,5 +225,117 @@ namespace WindowsInput
             Thread.Sleep(timeout);
             return this;
         }
+
+        #region DIK scancodes
+        /// <summary>
+        /// Calls the Win32 SendInput method to simulate a KeyDown.
+        /// </summary>
+        /// <param name="dikCode">The <see cref="DirectInputKeyCode"/> to press</param>
+        public IKeyboardSimulator KeyDown(DirectInputKeyCode dikCode)
+        {
+            var inputList = new InputBuilder().AddKeyDown(dikCode).ToArray();
+            SendSimulatedInput(inputList);
+            return this;
+        }
+
+        /// <summary>
+        /// Calls the Win32 SendInput method to simulate a KeyUp.
+        /// </summary>
+        /// <param name="dikCode">The <see cref="DirectInputKeyCode"/> to lift up</param>
+        public IKeyboardSimulator KeyUp(DirectInputKeyCode dikCode)
+        {
+            var inputList = new InputBuilder().AddKeyUp(dikCode).ToArray();
+            SendSimulatedInput(inputList);
+            return this;
+        }
+
+        /// <summary>
+        /// Calls the Win32 SendInput method with a KeyDown and KeyUp message in the same input sequence in order to simulate a Key PRESS.
+        /// </summary>
+        /// <param name="dikCode">The <see cref="DirectInputKeyCode"/> to press</param>
+        public IKeyboardSimulator KeyPress(DirectInputKeyCode dikCode)
+        {
+            var inputList =
+                new InputBuilder()
+                    .AddKeyDown(dikCode)
+                    .AddKeyUp(dikCode)
+                    .ToArray();
+            SendSimulatedInput(inputList);
+            return this;
+        }
+
+        /// <summary>
+        /// Simulates a simple modified keystroke like CTRL-C where CTRL is the modifierKey and C is the key.
+        /// The flow is Modifier KeyDown, Key Press, Modifier KeyUp.
+        /// </summary>
+        /// <param name="modifierDikCode">The modifier key</param>
+        /// <param name="dikCode">The key to simulate</param>
+        public IKeyboardSimulator ModifiedKeyStroke(DirectInputKeyCode modifierDikCode, DirectInputKeyCode dikCode)
+        {
+            ModifiedKeyStroke(new[] { modifierDikCode }, new[] { dikCode });
+            return this;
+        }
+
+        /// <summary>
+        /// Simulates a modified keystroke where there are multiple modifiers and one key like CTRL-ALT-C where CTRL and ALT are the modifierKeys and C is the key.
+        /// The flow is Modifiers KeyDown in order, Key Press, Modifiers KeyUp in reverse order.
+        /// </summary>
+        /// <param name="modifierDikCodes">The list of modifier keys</param>
+        /// <param name="dikCode">The key to simulate</param>
+        public IKeyboardSimulator ModifiedKeyStroke(IEnumerable<DirectInputKeyCode> modifierDikCodes, DirectInputKeyCode dikCode)
+        {
+            ModifiedKeyStroke(modifierDikCodes, new[] { dikCode });
+            return this;
+        }
+
+        /// <summary>
+        /// Simulates a modified keystroke where there is one modifier and multiple keys like CTRL-K-C where CTRL is the modifierKey and K and C are the keys.
+        /// The flow is Modifier KeyDown, Keys Press in order, Modifier KeyUp.
+        /// </summary>
+        /// <param name="modifierDikCode">The modifier key</param>
+        /// <param name="dikCodes">The list of keys to simulate</param>
+        public IKeyboardSimulator ModifiedKeyStroke(DirectInputKeyCode modifierDikCode, IEnumerable<DirectInputKeyCode> dikCodes)
+        {
+            ModifiedKeyStroke(new[] { modifierDikCode }, dikCodes);
+            return this;
+        }
+
+        /// <summary>
+        /// Simulates a modified keystroke where there are multiple modifiers and multiple keys like CTRL-ALT-K-C where CTRL and ALT are the modifierKeys and K and C are the keys.
+        /// The flow is Modifiers KeyDown in order, Keys Press in order, Modifiers KeyUp in reverse order.
+        /// </summary>
+        /// <param name="modifierDikCodes">The list of modifier keys</param>
+        /// <param name="dikCodes">The list of keys to simulate</param>
+        public IKeyboardSimulator ModifiedKeyStroke(IEnumerable<DirectInputKeyCode> modifierDikCodes, IEnumerable<DirectInputKeyCode> dikCodes)
+        {
+            var builder = new InputBuilder();
+            ModifiersDown(builder, modifierDikCodes);
+            KeysPress(builder, dikCodes);
+            ModifiersUp(builder, modifierDikCodes);
+            SendSimulatedInput(builder.ToArray());
+            return this;
+        }
+
+        private void ModifiersDown(InputBuilder builder, IEnumerable<DirectInputKeyCode> modifierDikCodes)
+        {
+            if (modifierDikCodes == null) return;
+            foreach (var dik in modifierDikCodes) builder.AddKeyDown(dik);
+        }
+
+        private void ModifiersUp(InputBuilder builder, IEnumerable<DirectInputKeyCode> modifierDikCodes)
+        {
+            if (modifierDikCodes == null) return;
+
+            // Key up in reverse (I miss LINQ)
+            var stack = new Stack<DirectInputKeyCode>(modifierDikCodes);
+            while (stack.Count > 0) builder.AddKeyUp(stack.Pop());
+        }
+
+        private void KeysPress(InputBuilder builder, IEnumerable<DirectInputKeyCode> dikCodes)
+        {
+            if (dikCodes == null) return;
+            foreach (var dik in dikCodes) builder.AddKeyPress(dik);
+        }
+        #endregion
     }
 }

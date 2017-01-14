@@ -44,7 +44,7 @@ namespace WindowsInput.Native
         /// These left- and right-distinguishing constants are only available when you call the GetKeyboardState, SetKeyboardState, GetAsyncKeyState, GetKeyState, and MapVirtualKey functions. 
         /// </remarks>
         [DllImport("user32.dll", SetLastError = true)]
-        public static extern Int16 GetAsyncKeyState(UInt16 virtualKeyCode);
+        public static extern Int16 GetAsyncKeyState(ushort virtualKeyCode);
 
         /// <summary>
         /// The GetKeyState function retrieves the status of the specified virtual key. The status specifies whether the key is up, down, or toggled (on, off alternating each time the key is pressed). (See: http://msdn.microsoft.com/en-us/library/ms646301(VS.85).aspx)
@@ -73,7 +73,7 @@ namespace WindowsInput.Native
         /// These left- and right-distinguishing constants are available to an application only through the GetKeyboardState, SetKeyboardState, GetAsyncKeyState, GetKeyState, and MapVirtualKey functions. 
         /// </remarks>
         [DllImport("user32.dll", SetLastError = true)]
-        public static extern Int16 GetKeyState(UInt16 virtualKeyCode);
+        public static extern Int16 GetKeyState(ushort virtualKeyCode);
 
         /// <summary>
         /// The SendInput function synthesizes keystrokes, mouse motions, and button clicks.
@@ -88,7 +88,7 @@ namespace WindowsInput.Native
         /// This function does not reset the keyboard's current state. Any keys that are already pressed when the function is called might interfere with the events that this function generates. To avoid this problem, check the keyboard's state with the GetAsyncKeyState function and correct as necessary.
         /// </remarks>
         [DllImport("user32.dll", SetLastError = true)]
-        public static extern UInt32 SendInput(UInt32 numberOfInputs, INPUT[] inputs, Int32 sizeOfInputStructure);
+        public static extern uint SendInput(uint numberOfInputs, Input[] inputs, Int32 sizeOfInputStructure);
 
         /// <summary>
         /// The GetMessageExtraInfo function retrieves the extra message information for the current thread. Extra message information is an application- or driver-defined value associated with the current thread's message queue. 
@@ -97,5 +97,62 @@ namespace WindowsInput.Native
         /// <remarks>To set a thread's extra message information, use the SetMessageExtraInfo function. </remarks>
         [DllImport("user32.dll")]
         public static extern IntPtr GetMessageExtraInfo();
+
+        /// <summary>
+        /// The MapVirtualKey function translates (maps) a virtual-key code into a scan
+        /// code or character value, or translates a scan code into a virtual-key code    
+        /// </summary>
+        /// <param name="uCode">[in] Specifies the virtual-key code or scan code for a key.
+        /// How this value is interpreted depends on the value of the uMapType parameter
+        /// </param>
+        /// <param name="uMapType">[in] Specifies the translation to perform. The value of this
+        /// parameter depends on the value of the uCode parameter.
+        /// </param>
+        /// <returns>Either a scan code, a virtual-key code, or a character value, depending on
+        /// the value of uCode and uMapType. If there is no translation, the return value is zero
+        /// </returns>
+        [DllImport("user32.dll")]
+        public static extern int MapVirtualKey(uint uCode, MapVirtualKeyMapTypes uMapType);
+
+        /// <summary>
+        /// The set of valid MapTypes used in MapVirtualKey
+        /// </summary>
+        public enum MapVirtualKeyMapTypes : uint
+        {
+            /// <summary>
+            /// uCode is a virtual-key code and is translated into a scan code.
+            /// If it is a virtual-key code that does not distinguish between left- and
+            /// right-hand keys, the left-hand scan code is returned.
+            /// If there is no translation, the function returns 0.
+            /// </summary>
+            MapvkVkToVsc = 0x00,
+
+            /// <summary>
+            /// uCode is a scan code and is translated into a virtual-key code that
+            /// does not distinguish between left- and right-hand keys. If there is no
+            /// translation, the function returns 0.
+            /// </summary>
+            MapvkVscToVk = 0x01,
+
+            /// <summary>
+            /// uCode is a virtual-key code and is translated into an unshifted
+            /// character value in the low-order word of the return value. Dead keys (diacritics)
+            /// are indicated by setting the top bit of the return value. If there is no
+            /// translation, the function returns 0.
+            /// </summary>
+            MapvkVkToChar = 0x02,
+
+            /// <summary>
+            /// Windows NT/2000/XP: uCode is a scan code and is translated into a
+            /// virtual-key code that distinguishes between left- and right-hand keys. If
+            /// there is no translation, the function returns 0.
+            /// </summary>
+            MapvkVscToVkEx = 0x03,
+
+            /// <summary>
+            /// Not currently documented
+            /// </summary>
+            MapvkVkToVscEx = 0x04
+        }
     }
 }

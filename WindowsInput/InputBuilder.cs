@@ -6,49 +6,49 @@ using WindowsInput.Native;
 namespace WindowsInput
 {
     /// <summary>
-    /// A helper class for building a list of <see cref="INPUT"/> messages ready to be sent to the native Windows API.
+    /// A helper class for building a list of <see cref="Input"/> messages ready to be sent to the native Windows API.
     /// </summary>
-    internal class InputBuilder : IEnumerable<INPUT>
+    internal class InputBuilder : IEnumerable<Input>
     {
         /// <summary>
-        /// The public list of <see cref="INPUT"/> messages being built by this instance.
+        /// The public list of <see cref="Input"/> messages being built by this instance.
         /// </summary>
-        private readonly List<INPUT> _inputList;
+        private readonly List<Input> _inputList;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="InputBuilder"/> class.
         /// </summary>
         public InputBuilder()
         {
-            _inputList = new List<INPUT>();
+            _inputList = new List<Input>();
         }
 
         /// <summary>
-        /// Returns the list of <see cref="INPUT"/> messages as a <see cref="System.Array"/> of <see cref="INPUT"/> messages.
+        /// Returns the list of <see cref="Input"/> messages as a <see cref="System.Array"/> of <see cref="Input"/> messages.
         /// </summary>
-        /// <returns>The <see cref="System.Array"/> of <see cref="INPUT"/> messages.</returns>
-        public INPUT[] ToArray()
+        /// <returns>The <see cref="System.Array"/> of <see cref="Input"/> messages.</returns>
+        public Input[] ToArray()
         {
             return _inputList.ToArray();
         }
 
         /// <summary>
-        /// Returns an enumerator that iterates through the list of <see cref="INPUT"/> messages.
+        /// Returns an enumerator that iterates through the list of <see cref="Input"/> messages.
         /// </summary>
         /// <returns>
-        /// A <see cref="T:System.Collections.Generic.IEnumerator`1"/> that can be used to iterate through the list of <see cref="INPUT"/> messages.
+        /// A <see cref="T:System.Collections.Generic.IEnumerator`1"/> that can be used to iterate through the list of <see cref="Input"/> messages.
         /// </returns>
         /// <filterpriority>1</filterpriority>
-        public IEnumerator<INPUT> GetEnumerator()
+        public IEnumerator<Input> GetEnumerator()
         {
             return _inputList.GetEnumerator();
         }
 
         /// <summary>
-        /// Returns an enumerator that iterates through the list of <see cref="INPUT"/> messages.
+        /// Returns an enumerator that iterates through the list of <see cref="Input"/> messages.
         /// </summary>
         /// <returns>
-        /// An <see cref="T:System.Collections.IEnumerator"/> object that can be used to iterate through the list of <see cref="INPUT"/> messages.
+        /// An <see cref="T:System.Collections.IEnumerator"/> object that can be used to iterate through the list of <see cref="Input"/> messages.
         /// </returns>
         /// <filterpriority>2</filterpriority>
         IEnumerator IEnumerable.GetEnumerator()
@@ -57,119 +57,81 @@ namespace WindowsInput
         }
 
         /// <summary>
-        /// Gets the <see cref="INPUT"/> at the specified position.
+        /// Gets the <see cref="Input"/> at the specified position.
         /// </summary>
-        /// <value>The <see cref="INPUT"/> message at the specified position.</value>
-        public INPUT this[int position]
-        {
-            get
-            {
-                return _inputList[position];
-            }
-        }
+        /// <value>The <see cref="Input"/> message at the specified position.</value>
+        public Input this[int position] => _inputList[position];
 
         /// <summary>
-        /// Determines if the <see cref="VirtualKeyCode"/> is an ExtendedKey
-        /// </summary>
-        /// <param name="keyCode">The key code.</param>
-        /// <returns>true if the key code is an extended key; otherwise, false.</returns>
-        /// <remarks>
-        /// The extended keys consist of the ALT and CTRL keys on the right-hand side of the keyboard; the INS, DEL, HOME, END, PAGE UP, PAGE DOWN, and arrow keys in the clusters to the left of the numeric keypad; the NUM LOCK key; the BREAK (CTRL+PAUSE) key; the PRINT SCRN key; and the divide (/) and ENTER keys in the numeric keypad.
-        /// 
-        /// See http://msdn.microsoft.com/en-us/library/ms646267(v=vs.85).aspx Section "Extended-Key Flag"
-        /// </remarks>
-        public static bool IsExtendedKey(VirtualKeyCode keyCode)
-        {
-            if (keyCode == VirtualKeyCode.MENU ||
-                keyCode == VirtualKeyCode.LMENU ||
-                keyCode == VirtualKeyCode.RMENU ||
-                keyCode == VirtualKeyCode.CONTROL ||
-                keyCode == VirtualKeyCode.RCONTROL ||
-                keyCode == VirtualKeyCode.INSERT ||
-                keyCode == VirtualKeyCode.DELETE ||
-                keyCode == VirtualKeyCode.HOME ||
-                keyCode == VirtualKeyCode.END ||
-                keyCode == VirtualKeyCode.PRIOR ||
-                keyCode == VirtualKeyCode.NEXT ||
-                keyCode == VirtualKeyCode.RIGHT ||
-                keyCode == VirtualKeyCode.UP ||
-                keyCode == VirtualKeyCode.LEFT ||
-                keyCode == VirtualKeyCode.DOWN ||
-                keyCode == VirtualKeyCode.NUMLOCK ||
-                keyCode == VirtualKeyCode.CANCEL ||
-                keyCode == VirtualKeyCode.SNAPSHOT ||
-                keyCode == VirtualKeyCode.DIVIDE)
-            {
-                return true;
-            }
-            else
-            {
-                return false;
-            }
-        }
-
-        /// <summary>
-        /// Adds a key down to the list of <see cref="INPUT"/> messages.
+        /// Adds a key down to the list of <see cref="Input"/> messages.
         /// </summary>
         /// <param name="keyCode">The <see cref="VirtualKeyCode"/>.</param>
         /// <returns>This <see cref="InputBuilder"/> instance.</returns>
         public InputBuilder AddKeyDown(VirtualKeyCode keyCode)
         {
+            // The specification says Scan is unused unless we are using KEYEVENTF_UNICODE or KEYEVENTF_SCANCODE.
+            // However, some applications like Microsoft's Remote Desktop Client assume it is the scan code, even
+            // when KEYEVENTF_SCANCODE is not set.  Set the value to work around these buggy apps.
+            ushort scan = (ushort)NativeMethods.MapVirtualKey((uint)keyCode, NativeMethods.MapVirtualKeyMapTypes.MapvkVkToVsc);
             var down =
-                new INPUT
-                    {
-                        Type = (UInt32) InputType.Keyboard,
-                        Data =
+                new Input
+                {
+                    Type = (uint)InputType.Keyboard,
+                    Data =
                             {
                                 Keyboard =
-                                    new KEYBDINPUT
+                                    new Keybdinput
                                         {
-                                            KeyCode = (UInt16) keyCode,
-                                            Scan = 0,
-                                            Flags = IsExtendedKey(keyCode) ? (UInt32) KeyboardFlag.ExtendedKey : 0,
+                                            KeyCode = (ushort) keyCode,
+                                            Scan = scan,
+                                            Flags = (scan > 0x7F) ? (uint) KeyboardFlag.ExtendedKey : 0,
                                             Time = 0,
                                             ExtraInfo = IntPtr.Zero
                                         }
                             }
-                    };
+                };
 
             _inputList.Add(down);
             return this;
         }
 
         /// <summary>
-        /// Adds a key up to the list of <see cref="INPUT"/> messages.
+        /// Adds a key up to the list of <see cref="Input"/> messages.
         /// </summary>
         /// <param name="keyCode">The <see cref="VirtualKeyCode"/>.</param>
         /// <returns>This <see cref="InputBuilder"/> instance.</returns>
         public InputBuilder AddKeyUp(VirtualKeyCode keyCode)
         {
+            // The specification says Scan is unused unless we are using KEYEVENTF_UNICODE or KEYEVENTF_SCANCODE.
+            // However, some applications like Microsoft's Remote Desktop Client assume it is the scan code, even
+            // when KEYEVENTF_SCANCODE is not set.  Set the value to work around these buggy apps.
+            ushort scan = (ushort)NativeMethods.MapVirtualKey((uint)keyCode, NativeMethods.MapVirtualKeyMapTypes.MapvkVkToVsc);
             var up =
-                new INPUT
-                    {
-                        Type = (UInt32) InputType.Keyboard,
-                        Data =
+                new Input
+                {
+                    Type = (uint)InputType.Keyboard,
+                    Data =
                             {
                                 Keyboard =
-                                    new KEYBDINPUT
+                                    new Keybdinput
                                         {
-                                            KeyCode = (UInt16) keyCode,
-                                            Scan = 0,
-                                            Flags = (UInt32) (IsExtendedKey(keyCode)
+                                            KeyCode = (ushort) keyCode,
+                                            Scan = scan,
+                                            Flags = (uint)((scan > 0x7F)
                                                                   ? KeyboardFlag.KeyUp | KeyboardFlag.ExtendedKey
                                                                   : KeyboardFlag.KeyUp),
                                             Time = 0,
                                             ExtraInfo = IntPtr.Zero
                                         }
                             }
-                    };
+                };
 
             _inputList.Add(up);
             return this;
         }
 
         /// <summary>
-        /// Adds a key press to the list of <see cref="INPUT"/> messages which is equivalent to a key down followed by a key up.
+        /// Adds a key press to the list of <see cref="Input"/> messages which is equivalent to a key down followed by a key up.
         /// </summary>
         /// <param name="keyCode">The <see cref="VirtualKeyCode"/>.</param>
         /// <returns>This <see cref="InputBuilder"/> instance.</returns>
@@ -181,56 +143,56 @@ namespace WindowsInput
         }
 
         /// <summary>
-        /// Adds the character to the list of <see cref="INPUT"/> messages.
+        /// Adds the character to the list of <see cref="Input"/> messages.
         /// </summary>
-        /// <param name="character">The <see cref="System.Char"/> to be added to the list of <see cref="INPUT"/> messages.</param>
+        /// <param name="character">The <see cref="System.Char"/> to be added to the list of <see cref="Input"/> messages.</param>
         /// <returns>This <see cref="InputBuilder"/> instance.</returns>
         public InputBuilder AddCharacter(char character)
         {
-            UInt16 scanCode = character;
+            ushort scanCode = character;
 
-            var down = new INPUT
-                           {
-                               Type = (UInt32)InputType.Keyboard,
-                               Data =
+            var down = new Input
+            {
+                Type = (uint)InputType.Keyboard,
+                Data =
                                    {
                                        Keyboard =
-                                           new KEYBDINPUT
+                                           new Keybdinput
                                                {
                                                    KeyCode = 0,
                                                    Scan = scanCode,
-                                                   Flags = (UInt32)KeyboardFlag.Unicode,
+                                                   Flags = (uint)KeyboardFlag.Unicode,
                                                    Time = 0,
                                                    ExtraInfo = IntPtr.Zero
                                                }
                                    }
-                           };
+            };
 
-            var up = new INPUT
-                         {
-                             Type = (UInt32)InputType.Keyboard,
-                             Data =
+            var up = new Input
+            {
+                Type = (uint)InputType.Keyboard,
+                Data =
                                  {
                                      Keyboard =
-                                         new KEYBDINPUT
+                                         new Keybdinput
                                              {
                                                  KeyCode = 0,
                                                  Scan = scanCode,
                                                  Flags =
-                                                     (UInt32)(KeyboardFlag.KeyUp | KeyboardFlag.Unicode),
+                                                     (uint)(KeyboardFlag.KeyUp | KeyboardFlag.Unicode),
                                                  Time = 0,
                                                  ExtraInfo = IntPtr.Zero
                                              }
                                  }
-                         };
+            };
 
             // Handle extended keys:
             // If the scan code is preceded by a prefix byte that has the value 0xE0 (224),
             // we need to include the KEYEVENTF_EXTENDEDKEY flag in the Flags property. 
             if ((scanCode & 0xFF00) == 0xE000)
             {
-                down.Data.Keyboard.Flags |= (UInt32)KeyboardFlag.ExtendedKey;
-                up.Data.Keyboard.Flags |= (UInt32)KeyboardFlag.ExtendedKey;
+                down.Data.Keyboard.Flags |= (uint)KeyboardFlag.ExtendedKey;
+                up.Data.Keyboard.Flags |= (uint)KeyboardFlag.ExtendedKey;
             }
 
             _inputList.Add(down);
@@ -270,8 +232,8 @@ namespace WindowsInput
         /// <returns>This <see cref="InputBuilder"/> instance.</returns>
         public InputBuilder AddRelativeMouseMovement(int x, int y)
         {
-            var movement = new INPUT { Type = (UInt32)InputType.Mouse };
-            movement.Data.Mouse.Flags = (UInt32)MouseFlag.Move;
+            var movement = new Input { Type = (uint)InputType.Mouse };
+            movement.Data.Mouse.Flags = (uint)MouseFlag.Move;
             movement.Data.Mouse.X = x;
             movement.Data.Mouse.Y = y;
 
@@ -288,8 +250,8 @@ namespace WindowsInput
         /// <returns>This <see cref="InputBuilder"/> instance.</returns>
         public InputBuilder AddAbsoluteMouseMovement(int absoluteX, int absoluteY)
         {
-            var movement = new INPUT { Type = (UInt32)InputType.Mouse };
-            movement.Data.Mouse.Flags = (UInt32)(MouseFlag.Move | MouseFlag.Absolute);
+            var movement = new Input { Type = (uint)InputType.Mouse };
+            movement.Data.Mouse.Flags = (uint)(MouseFlag.Move | MouseFlag.Absolute);
             movement.Data.Mouse.X = absoluteX;
             movement.Data.Mouse.Y = absoluteY;
 
@@ -306,8 +268,8 @@ namespace WindowsInput
         /// <returns>This <see cref="InputBuilder"/> instance.</returns>
         public InputBuilder AddAbsoluteMouseMovementOnVirtualDesktop(int absoluteX, int absoluteY)
         {
-            var movement = new INPUT { Type = (UInt32)InputType.Mouse };
-            movement.Data.Mouse.Flags = (UInt32)(MouseFlag.Move | MouseFlag.Absolute | MouseFlag.VirtualDesk);
+            var movement = new Input { Type = (uint)InputType.Mouse };
+            movement.Data.Mouse.Flags = (uint)(MouseFlag.Move | MouseFlag.Absolute | MouseFlag.VirtualDesk);
             movement.Data.Mouse.X = absoluteX;
             movement.Data.Mouse.Y = absoluteY;
 
@@ -323,8 +285,8 @@ namespace WindowsInput
         /// <returns>This <see cref="InputBuilder"/> instance.</returns>
         public InputBuilder AddMouseButtonDown(MouseButton button)
         {
-            var buttonDown = new INPUT { Type = (UInt32)InputType.Mouse };
-            buttonDown.Data.Mouse.Flags = (UInt32)ToMouseButtonDownFlag(button);
+            var buttonDown = new Input { Type = (uint)InputType.Mouse };
+            buttonDown.Data.Mouse.Flags = (uint)ToMouseButtonDownFlag(button);
 
             _inputList.Add(buttonDown);
 
@@ -338,9 +300,9 @@ namespace WindowsInput
         /// <returns>This <see cref="InputBuilder"/> instance.</returns>
         public InputBuilder AddMouseXButtonDown(int xButtonId)
         {
-            var buttonDown = new INPUT { Type = (UInt32)InputType.Mouse };
-            buttonDown.Data.Mouse.Flags = (UInt32)MouseFlag.XDown;
-            buttonDown.Data.Mouse.MouseData = (UInt32)xButtonId;
+            var buttonDown = new Input { Type = (uint)InputType.Mouse };
+            buttonDown.Data.Mouse.Flags = (uint)MouseFlag.XDown;
+            buttonDown.Data.Mouse.MouseData = (uint)xButtonId;
             _inputList.Add(buttonDown);
 
             return this;
@@ -353,8 +315,8 @@ namespace WindowsInput
         /// <returns>This <see cref="InputBuilder"/> instance.</returns>
         public InputBuilder AddMouseButtonUp(MouseButton button)
         {
-            var buttonUp = new INPUT { Type = (UInt32)InputType.Mouse };
-            buttonUp.Data.Mouse.Flags = (UInt32)ToMouseButtonUpFlag(button);
+            var buttonUp = new Input { Type = (uint)InputType.Mouse };
+            buttonUp.Data.Mouse.Flags = (uint)ToMouseButtonUpFlag(button);
             _inputList.Add(buttonUp);
 
             return this;
@@ -367,9 +329,9 @@ namespace WindowsInput
         /// <returns>This <see cref="InputBuilder"/> instance.</returns>
         public InputBuilder AddMouseXButtonUp(int xButtonId)
         {
-            var buttonUp = new INPUT { Type = (UInt32)InputType.Mouse };
-            buttonUp.Data.Mouse.Flags = (UInt32)MouseFlag.XUp;
-            buttonUp.Data.Mouse.MouseData = (UInt32)xButtonId;
+            var buttonUp = new Input { Type = (uint)InputType.Mouse };
+            buttonUp.Data.Mouse.Flags = (uint)MouseFlag.XUp;
+            buttonUp.Data.Mouse.MouseData = (uint)xButtonId;
             _inputList.Add(buttonUp);
 
             return this;
@@ -422,9 +384,9 @@ namespace WindowsInput
         /// <returns>This <see cref="InputBuilder"/> instance.</returns>
         public InputBuilder AddMouseVerticalWheelScroll(int scrollAmount)
         {
-            var scroll = new INPUT { Type = (UInt32)InputType.Mouse };
-            scroll.Data.Mouse.Flags = (UInt32)MouseFlag.VerticalWheel;
-            scroll.Data.Mouse.MouseData = (UInt32)scrollAmount;
+            var scroll = new Input { Type = (uint)InputType.Mouse };
+            scroll.Data.Mouse.Flags = (uint)MouseFlag.VerticalWheel;
+            scroll.Data.Mouse.MouseData = (uint)scrollAmount;
 
             _inputList.Add(scroll);
 
@@ -438,9 +400,9 @@ namespace WindowsInput
         /// <returns>This <see cref="InputBuilder"/> instance.</returns>
         public InputBuilder AddMouseHorizontalWheelScroll(int scrollAmount)
         {
-            var scroll = new INPUT { Type = (UInt32)InputType.Mouse };
-            scroll.Data.Mouse.Flags = (UInt32)MouseFlag.HorizontalWheel;
-            scroll.Data.Mouse.MouseData = (UInt32)scrollAmount;
+            var scroll = new Input { Type = (uint)InputType.Mouse };
+            scroll.Data.Mouse.Flags = (uint)MouseFlag.HorizontalWheel;
+            scroll.Data.Mouse.MouseData = (uint)scrollAmount;
 
             _inputList.Add(scroll);
 
@@ -482,5 +444,81 @@ namespace WindowsInput
                     return MouseFlag.LeftUp;
             }
         }
+
+        #region DIK scancodes
+        /// <summary>
+        /// Adds a key down to the list of <see cref="Input"/> messages.
+        /// </summary>
+        /// <param name="dikCode">The <see cref="DirectInputKeyCode"/>.</param>
+        /// <returns>This <see cref="InputBuilder"/> instance.</returns>
+        public InputBuilder AddKeyDown(DirectInputKeyCode dikCode)
+        {
+            var down =
+                new Input
+                {
+                    Type = (uint)InputType.Keyboard,
+                    Data =
+                    {
+                        Keyboard =
+                            new Keybdinput
+                            {
+                                KeyCode = 0,
+                                Scan = (ushort)dikCode,
+                                Flags = (uint)(((ushort)dikCode > 0x7F)
+                                                      ? KeyboardFlag.ScanCode | KeyboardFlag.ExtendedKey
+                                                      : KeyboardFlag.ScanCode),
+                                Time = 0,
+                                ExtraInfo = IntPtr.Zero
+                            }
+                    }
+                };
+
+            _inputList.Add(down);
+            return this;
+        }
+
+        /// <summary>
+        /// Adds a key up to the list of <see cref="Input"/> messages.
+        /// </summary>
+        /// <param name="dikCode">The <see cref="DirectInputKeyCode"/>.</param>
+        /// <returns>This <see cref="InputBuilder"/> instance.</returns>
+        public InputBuilder AddKeyUp(DirectInputKeyCode dikCode)
+        {
+            var up =
+                new Input
+                {
+                    Type = (uint)InputType.Keyboard,
+                    Data =
+                    {
+                        Keyboard =
+                            new Keybdinput
+                            {
+                                KeyCode = 0,
+                                Scan = (ushort)dikCode,
+                                Flags = (uint)(((ushort)dikCode > 0x7F)
+                                                      ? KeyboardFlag.ScanCode | KeyboardFlag.KeyUp | KeyboardFlag.ExtendedKey
+                                                      : KeyboardFlag.ScanCode | KeyboardFlag.KeyUp),
+                                Time = 0,
+                                ExtraInfo = IntPtr.Zero
+                            }
+                    }
+                };
+
+            _inputList.Add(up);
+            return this;
+        }
+
+        /// <summary>
+        /// Adds a key press to the list of <see cref="Input"/> messages which is equivalent to a key down followed by a key up.
+        /// </summary>
+        /// <param name="dikCode">The <see cref="DirectInputKeyCode"/>.</param>
+        /// <returns>This <see cref="InputBuilder"/> instance.</returns>
+        public InputBuilder AddKeyPress(DirectInputKeyCode dikCode)
+        {
+            AddKeyDown(dikCode);
+            AddKeyUp(dikCode);
+            return this;
+        }
+        #endregion
     }
 }
